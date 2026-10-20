@@ -50,8 +50,9 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // 桌面版不畫 PromptHint 自訂樹；真正固定顯示在輸入框下方的是 footer 的
-  // SessionMode 標籤列（「Fable 5 Medium」那排）——把用量加成一個標籤。
+  // The desktop app does not draw custom PromptHint trees; the spot that is
+  // always visible below the composer is the footer's SessionMode label row —
+  // so append the usage as one more label.
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
     const list = await read($, limits)
     if (list.length === 0) return next(e)

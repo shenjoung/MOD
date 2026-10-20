@@ -12,7 +12,7 @@ const USAGE = {
   ],
 }
 
-// 底層的 ui.render 會看到被改寫後的 modes——從這裡觀察結果
+// The bottom ui.render hook sees the rewritten modes — observe the result there
 function world(on: On, usage: unknown, seen: string[][]) {
   mock.clock(on, { now: NOW })
   mock.store(on)

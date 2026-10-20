@@ -1,7 +1,9 @@
 {
   "name": "task-sort",
   "version": "0.1.0",
-  "description": "Session 開始時在輸入框上方問人名和問題，產生「MM-DD · 人名 · 問題」標題並把 session 歸入 sidebar 群組；/task-sort date|person|both|off 切換分類方式並重新歸檔。",
-  "author": { "name": "Jones Fang" },
+  "description": "Composer toolbar (Explain / Explain in fork / Sort), session classification into person groups with date-prefixed titles, the Explain panel, and the fork-chat loop that relays decisions back to the parent session.",
+  "author": {
+    "name": "Jones Fang"
+  },
   "types": "./types/index.d.ts"
 }

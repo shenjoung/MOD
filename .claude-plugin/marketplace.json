@@ -7,27 +7,27 @@
     {
       "name": "next-steps-desktop",
       "source": "./next-steps-desktop",
-      "description": "每回合後在輸入框上方給最多三個下一步建議"
+      "description": "Up to five likely next prompts above the composer after each turn; press to draft, Send to submit."
     },
     {
       "name": "paste-offload",
       "source": "./paste-offload",
-      "description": "超長貼上內容存檔，prompt 只留開頭與路徑"
+      "description": "Long pastes are saved to a file; the prompt keeps only the head and the path."
     },
     {
       "name": "deploy-status",
       "source": "./deploy-status",
-      "description": "/deploys 顯示 hourloop/guild 的 prod/integ 部署狀態"
+      "description": "/deploys pane: what prod and integ last deployed, what is deploying now, and whether your commits are live."
     },
     {
       "name": "task-sort",
       "source": "./task-sort",
-      "description": "輸入框上緣工具列（Explain＋Sort 下拉）、session 分類、解釋小窗與開 fork 聊天"
+      "description": "Composer toolbar (Explain / Explain in fork / Sort), session classification, the Explain panel and the fork-chat decision loop."
     },
     {
       "name": "usage-line",
       "source": "./usage-line",
-      "description": "footer 顯示 5h/7d 用量與重置倒數"
+      "description": "5h/7d rate-limit usage with reset countdowns in the prompt footer."
     }
   ]
 }

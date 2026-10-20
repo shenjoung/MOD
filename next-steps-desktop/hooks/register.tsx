@@ -27,7 +27,7 @@ type View =
   | { kind: 'loading'; turnId: string }
   | { kind: 'offer'; items: Suggestion[] }
 
-const MAX_SUGGESTIONS = 3
+const MAX_SUGGESTIONS = 5
 const LABEL_MAX = 48
 const PROMPT_MAX = 600
 const SKILL_NAME_MAX = 64
@@ -96,10 +96,12 @@ function skillList(commands: readonly CommandInfo[]): string {
 function forkPrompt(skills: string): string {
   return (
     'Do not continue the task. Instead, predict what the user is most likely to ask you next, ' +
-    `as up to ${MAX_SUGGESTIONS} concrete prompts written in the user's voice (imperative, specific to ` +
+    `as concrete prompts written in the user's voice (imperative, specific to ` +
     'this conversation: name the file, test, PR, or follow-up they would actually type). Prefer the ' +
     'obvious next action (run the tests, commit, fix the thing you flagged, do the same for X) over generic ' +
-    'ones. If the conversation is clearly finished or nothing useful comes to mind, return an empty list.\n\n' +
+    `ones. Include only options genuinely worth considering — ${MAX_SUGGESTIONS} at most, and fewer is ` +
+    'better than padding: two strong options beat five weak ones. If the conversation is clearly ' +
+    'finished or nothing useful comes to mind, return an empty list.\n\n' +
     (skills === ''
       ? ''
       : 'The user runs a skill or slash command by starting a prompt with its name. When one of them is ' +
@@ -154,8 +156,9 @@ let view: View = { kind: 'hidden' }
 // plugin's) while it is shown, so the band can offer to send it too.
 let ghost: string | null = null
 
-// 把目前的建議同步發布到 $.state，讓其他 plugin（task-sort 的
-// fork-explain）讀得到；fork 複製的是對話，band 上的建議不在對話裡。
+// Publish the current suggestions to $.state so other plugins (task-sort's
+// fork-explain) can read them; a fork copies the conversation, and the
+// band's suggestions are not part of it.
 const published = atom(
   { plugin: 'next-steps-desktop', key: 'suggestions' } as const,
   [] as { label: string; prompt: string }[],

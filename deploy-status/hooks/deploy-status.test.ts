@@ -66,8 +66,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(texts).toContain(`prod  ${PROD_SHA.slice(0, 9)}  10/07 18:36  deploy.yml`)
     expect(texts).toContain(`integ ${INTEG_SHA.slice(0, 9)}  10/08 00:37  integ-sync.yml`)
     expect(texts).toContain('deploy.yml  in_progress')
-    expect(texts).toContain(`${MINE_NEW.slice(0, 9)}  integ 已上  prod 未上`)
-    expect(texts).toContain(`${MINE_OLD.slice(0, 9)}  integ 已上  prod 已上`)
+    expect(texts).toContain(`${MINE_NEW.slice(0, 9)}  integ live  prod not live`)
+    expect(texts).toContain(`${MINE_OLD.slice(0, 9)}  integ live  prod live`)
 
     // Read-only: list runs and GET the API, nothing else.
     for (const a of argvs) {
@@ -84,7 +84,7 @@ test('a gh failure shows the reason and a refresh button', async ($, on) => {
   await $.command.run({ command: 'deploys', args: '', origin: { kind: 'sdk' }, presentation: { isFullscreen: false, columns: 100 } })
   await settle()
   const ui = await $.ui.mount({ plugin: 'deploy-status', surface: 'desktop', ...PANE })
-  expect((await ui.find({ type: 'Text', text: /查詢失敗/ }))?.text).toBe('查詢失敗：HTTP 401: Bad credentials')
+  expect((await ui.find({ type: 'Text', text: /Query failed/ }))?.text).toBe('Query failed: HTTP 401: Bad credentials')
   expect(await ui.find({ key: 'refresh' })).toBeDefined()
   await ui.unmount()
 })

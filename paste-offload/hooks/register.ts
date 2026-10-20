@@ -85,7 +85,7 @@ export const register: Register = (on, options) => {
       if (saved.length === 0) return next(e)
       const chars = saved.reduce((sum, s) => sum + s.chars, 0)
       $.ui.toast(
-        `已把 ${chars.toLocaleString('en-US')} 字的貼上存成檔案（${saved.length} 個），對話只留開頭 ${lines} 行：${saved[0]?.path ?? ''}`,
+        `Saved a ${chars.toLocaleString('en-US')}-char paste to ${saved.length} file(s); the prompt keeps the first ${lines} lines: ${saved[0]?.path ?? ''}`,
         { timeoutMs: 8000 },
       )
       return next({ ...e, text })

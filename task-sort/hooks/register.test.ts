@@ -1,11 +1,11 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { CommandRunInput, On, RenderElement, RenderPropsOf } from 'claude-code'
 
-// 測試裡 $.command.run 只需要 command + args；補齊型別用
+// In tests $.command.run only needs command + args; cast fills the type
 const runArgs = (args: string) =>
   ({ command: 'task-sort', args }) as unknown as CommandRunInput
 
-// 測試世界的底層：記憶體 store/clock，加上引擎在測試裡沒有實作的幾個 op
+// Test-world bottom: in-memory store/clock plus the ops the kit leaves unimplemented
 function world(on: On, entries?: Readonly<Record<string, unknown>>) {
   mock.store(on, entries)
   mock.clock(on, { now: Date.UTC(2026, 9, 14, 8, 0, 0) })
@@ -121,7 +121,7 @@ describe('task-sort band', () => {
     expect(await ui.find({ key: 'create' })).toBeUndefined()
     await ui.unmount()
 
-    // 略過要記進 store：同一個 session 再 start 一次不會再被問
+    // Skip must be recorded: the same session is not asked again on restart
     await $.session.start({ cwd: '/tmp', surface: 'desktop', isInteractive: true })
     const again = await $.ui.mount({
       plugin: 'task-sort',
@@ -134,7 +134,7 @@ describe('task-sort band', () => {
   })
 
   test('untouched picker still files under the preselected person', async ($, on) => {
-    // 自建記憶體 store（不用 mock.store），才能觀察寫入內容
+    // Hand-rolled in-memory store (instead of mock.store) so writes can be observed
     const db: Record<string, unknown> = { people: ['joanne'] }
     mock.clock(on, { now: Date.UTC(2026, 9, 14, 8, 0, 0) })
     on('store.get', (_$, e) => ({ value: (db[(e as { key: string }).key] ?? null) as never }))
@@ -181,7 +181,7 @@ describe('task-sort band', () => {
   })
 })
 
-// ── Explain（併入 task-sort 後的測試）──────────────────────────────
+// -- Explain (tests after the merge into task-sort) ------------------------
 function explainWorld(
   on: On,
   opts: { selection?: string; forkEmpty?: boolean; mcpCalls?: { server: string; tool: string; args?: Record<string, unknown> }[] },
@@ -193,7 +193,7 @@ function explainWorld(
   on('model.fork', () => ({
     value: (opts.forkEmpty
       ? { isAnswered: false, reason: 'nothing-to-fork' }
-      : { isAnswered: true, text: '- 解釋點一\n- 解釋點二', usage: {} }) as never,
+      : { isAnswered: true, text: '- point one\n- point two', usage: {} }) as never,
   }))
   if (opts.mcpCalls) {
     const calls = opts.mcpCalls
@@ -243,7 +243,7 @@ describe('explain (merged)', () => {
     expect((fills[0]?.text ?? '').length < 60).toBe(true)
     await pane.unmount()
 
-    // 使用者按 Enter（這裡模擬送出同一句短話）→ 隱形 context 應帶完整指令
+    // The user presses Enter (simulated here) -> hidden context carries the instruction
     await $.prompt.submit({ text: 'Open the explain-chat fork.' })
     const joined = (seenContext ?? []).join(' ')
     expect(joined).toContain('context "fork"')
@@ -251,7 +251,7 @@ describe('explain (merged)', () => {
     expect(joined).toContain('send_message')
     expect(joined).toContain('parent')
 
-    // 第二次送出（flag 已清）不再附加
+    // A second send (flag cleared) attaches nothing
     seenContext = undefined
     await $.prompt.submit({ text: 'Open the explain-chat fork.' })
     expect((seenContext ?? []).length).toBe(0)

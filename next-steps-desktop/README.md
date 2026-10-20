@@ -14,7 +14,7 @@ next:
 
 Press `1`, `2` or `3` from an empty prompt box (or click one) and that prompt is written into the box as a draft. Edit it, then press Enter yourself. `0` dismisses. The top suggestion also shows as the box's dim ghost text, so Tab takes it.
 
-Each suggestion also has a **送出** (Send) button that submits it to the session at once, as your own prompt; when the prompt box shows its own dim suggestion, the band offers that one too, with the same button. Nothing is sent unless you press Send.
+Each suggestion also has a **Send** button that submits it to the session at once, as your own prompt; when the prompt box shows its own dim suggestion, the band offers that one too, with the same button. Nothing is sent unless you press Send.
 
 ## How it works
 

@@ -1,7 +1,7 @@
 {
   "name": "usage-line",
   "version": "0.1.0",
-  "description": "右側面板顯示 5h/7d 用量進度條（彩色、重置倒數與時刻），資料與 /usage 同源。",
+  "description": "5-hour and 7-day rate-limit usage with reset countdowns in the prompt footer, from the engine’s own readings (same source as /usage).",
   "author": {
     "name": "Jones Fang"
   },

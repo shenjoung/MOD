@@ -2,7 +2,9 @@
   "name": "deploy-status",
   "version": "0.1.0",
   "description": "/deploys opens a read-only pane: what prod and integ last deployed for hourloop/guild, what is deploying now, and whether your latest commits on main are live on each.",
-  "author": { "name": "Jones Fang" },
+  "author": {
+    "name": "Jones Fang"
+  },
   "types": "./types/index.d.ts",
   "userConfig": {
     "repo": {

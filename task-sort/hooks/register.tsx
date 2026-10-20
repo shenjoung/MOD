@@ -3,22 +3,22 @@ import type { Register, EngineInterface } from 'claude-code'
 
 import type { TaskForm, Mode, ExplainView } from '../types'
 
-// 桌面 app 的 MCP server 名稱（/mcp 列表中的拼法）
+// Desktop app MCP server names (as /mcp lists them)
 const SIDEBAR = 'ccd_sidebar'
 const SESSIONS = 'ccd_session_mgmt'
 
-// 分類設計（參考 Things 3 / Todoist / OmniFocus 的資料夾模式）：
-// 人名＝穩定的資料夾（sidebar 群組）；時間不開資料夾——日期放在標題前綴，
-// 時間瀏覽交給 app 內建的 Group by date 檢視。
-//   person：入人名群組，標題＝問題
-//   date  ：不入群組，標題＝日期 · 人名 · 問題（配 app 的日期檢視用）
-//   both  ：入人名群組，標題＝日期 · 問題（群組內按日期掃視）
-//   off   ：不詢問
-// 模式切換＝usage-line 的「Usage」卡裡的 segmented control（它讀本 plugin
-// 的 mode state、透過 /task-sort 指令寫回，所以 state 的擁有者仍是這裡）。
-// 只影響之後的新 session，舊的一律不動。
-// 人名輸入＝W3C combobox「recent values」模式：選單列出輸入過的人名，
-// 另有「＋ 新名字」切回文字輸入。
+// Classification design (after the Things 3 / Todoist / OmniFocus folder
+// model): people are the stable folders (sidebar groups); time never gets a
+// folder — the date goes into the title prefix, and time browsing is the
+// app's own Group by date view.
+//   person: person group, title = task
+//   date:   no group, title = date · person · task (for the date view)
+//   both:   person group, title = date · task (scan by date inside a group)
+//   off:    never ask
+// The mode switch lives in the composer toolbar; this plugin owns the mode
+// state. Switching affects new sessions only; old ones are never re-filed.
+// Person input follows the W3C combobox "recent values" pattern: a dropdown
+// of previously used names plus "+ New name" to type a fresh one.
 type Entry = { date: string; person: string; issue: string; skipped?: boolean }
 
 const pending = atom({ plugin: 'task-sort', key: 'pending' } as const, false)
@@ -53,7 +53,7 @@ async function setMode($: EngineInterface, next: Mode): Promise<void> {
   await update($, modeA, () => next)
 }
 
-// MCP 工具結果的第一個 text block 當 JSON 解析
+// Parse the first text block of an MCP tool result as JSON
 function mcpJson(result: { content?: readonly unknown[] }): unknown {
   const blocks = (result.content ?? []) as { type?: string; text?: string }[]
   const text = blocks.find(b => b.type === 'text' && typeof b.text === 'string')?.text
@@ -75,7 +75,7 @@ async function ensureGroup($: EngineInterface, name: string): Promise<string | n
       if (hit?.id) return hit.id
     }
   } catch {
-    // list 失敗就直接嘗試建立
+    // If listing fails, just try to create the group
   }
   try {
     const created = mcpJson(await $.mcp.call(SIDEBAR, 'create_group', { name }))
@@ -146,19 +146,21 @@ async function dismiss($: EngineInterface): Promise<void> {
   await $.store.set('classified', classified)
 }
 
-// ── Explain（原獨立 mod，10-16 併入以共用同一行工具列）────────────────
-// 仿「選取文字 → 浮動解釋」popover 模式：按鈕在輸入框旁，有選取就解釋
-// 選取內容、否則解釋上一則回覆；$.model.fork 側問取得，開右側「解釋」
-// 小窗；看完還不懂可開一個 fork session 繼續聊。
+// -- Explain (formerly its own mod; merged so both share one toolbar row) --
+// Modeled on the "select text -> floating explanation" popover pattern: the
+// button sits by the composer; with a selection it explains the selection,
+// otherwise the last reply. The answer comes from a $.model.fork side query
+// and opens in the Explain panel; a real fork session continues the chat.
 const EXPLAIN_PANE = 'explain'
 const explainView = atom({ plugin: 'task-sort', key: 'explain' } as const, {
   kind: 'idle',
 } as ExplainView)
-// 按下 fork 鈕後暫存的完整指令：使用者送出短句時由 prompt.submit hook
-// 以隱形 context 附給模型（訊息框只留一句話）
+// The full instruction staged by the fork buttons: when the user sends the
+// short marker line, the prompt.submit hook attaches it as hidden context
+// (the composer only ever shows one short sentence)
 const forkArmed = atom({ plugin: 'task-sort', key: 'forkArmed' } as const, null as string | null)
 
-// 線條風格問號圈圈 icon（沿用側欄線條 SVG 風格，不用 emoji）
+// Line-style question-circle icon (matches the sidebar's line SVGs; no emoji)
 const ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#8b8b94" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M6.1 6.1a1.9 1.9 0 1 1 2.7 1.7c-.55.3-.8.65-.8 1.3v.2"/><path d="M8 11.5v.01"/></svg>`
 
 function replyPrompt(): string {
@@ -202,7 +204,7 @@ async function runExplain($: EngineInterface): Promise<void> {
     let r = await $.model.fork({
       prompt: selected !== '' ? selectionPrompt(selected) : replyPrompt(),
     })
-    // fork 要有對話才開得起來；有選取文字時退回一般 completion 照樣解釋
+    // A fork needs a conversation; with a selection, plain completion still works
     if (!r.isAnswered && 'reason' in r && r.reason === 'nothing-to-fork') {
       if (selected !== '') {
         r = await $.model.complete({
@@ -231,13 +233,15 @@ async function runExplain($: EngineInterface): Promise<void> {
 }
 
 
-// 「還是不懂 → 開 fork 聊」：真 fork 只認使用者親自送出的話（plugin 直呼、
-// plugin/asUser 代送全被降級；offer 卡只能開 fresh）。為了讓訊息框不要
-// 一大串：按鈕只填一句短話，完整的 start_session 指令存進 forkArmed，
-// 由 prompt.submit hook 用隱形 context（模型看得到、使用者看不到）附上。
+// "Still unclear -> chat in a fork": a real fork only starts from words the
+// user sent themselves (plugin-origin MCP calls are refused; plugin and even
+// asUser submissions are downgraded to an offer card, and an accepted offer
+// can only start fresh). To keep the composer short, the button fills one
+// marker line; the full start_session instruction is staged in forkArmed and
+// attached as hidden context by the prompt.submit hook.
 const FORK_MARKER = 'Open the explain-chat fork.'
 
-// 兩顆按鈕共用：把完整指令存進 forkArmed、短句填進輸入框
+// Shared by both fork buttons: stage the instruction, draft the marker line
 async function armFork($: EngineInterface, instruction: string): Promise<void> {
   try {
     const r = await $.prompt.fill({ text: FORK_MARKER, mode: 'replace' })
@@ -252,7 +256,7 @@ async function armFork($: EngineInterface, instruction: string): Promise<void> {
   }
 }
 
-// 讀 next-steps 發布在 $.state 的目前建議（跨 plugin 讀取是允許的）
+// Read the suggestions next-steps publishes to $.state (cross-plugin reads are allowed)
 async function currentSuggestions($: EngineInterface): Promise<{ label: string; prompt: string }[]> {
   try {
     const got = (await $.state.get({ plugin: 'next-steps-desktop', key: 'suggestions' } as never)) as {
@@ -271,7 +275,7 @@ async function startChat($: EngineInterface, target: string): Promise<void> {
       : `Explain the ${target} `,
     'so a complete non-expert gets it: list every knowledge point in plain words, ',
     'then keep chatting with me one concept at a time until I get it. ',
-    'When I signal I am done or state a decision (e.g. "ok", "就這樣", "decided", "用 A"), ',
+    'When I signal I am done or state a decision (in any language, e.g. "ok", "done", "go with A"), ',
     'close the loop: (1) reply with a one-line summary of my decision and the concrete ',
     'next steps; (2) relay it to the parent session with the send_message tool ',
     '(session_id "parent") in one short message: the decision, and what the parent ',
@@ -281,7 +285,7 @@ async function startChat($: EngineInterface, target: string): Promise<void> {
   await armFork($, forkInstruction(forkPrompt))
 }
 
-// 一鍵 fork explain：解釋上一則回覆＋逐一解釋 next-step 選項，決定後回傳 parent
+// One-click fork explain: explain the last reply, walk through the next-step options, relay the decision to the parent
 async function startForkExplain($: EngineInterface): Promise<void> {
   const suggestions = await currentSuggestions($)
   const options =
@@ -295,7 +299,7 @@ async function startForkExplain($: EngineInterface): Promise<void> {
     'list every knowledge point in plain words. ',
     options,
     'Then help me choose: chat with me one concept at a time. ',
-    'When I state a decision (e.g. "ok", "就這樣", "decided", "選 2"), close the loop: ',
+    'When I state a decision (in any language, e.g. "ok", "done", "option 2"), close the loop: ',
     '(1) reply with a one-line summary of my decision and the concrete next steps; ',
     '(2) relay it to the parent session with the send_message tool (session_id "parent") ',
     'in one short message: the decision, and what the parent session should do next. ',
@@ -328,9 +332,9 @@ export const register: Register = on => {
     const mode = await getStore<Mode>($, 'mode', 'both')
     await update($, modeA, () => mode)
 
-    // 注意：桌面 app 的 session 由 SDK 啟動，e.isInteractive=false、
-    // e.surface=null —— 不能拿它們當 gate。band 只在有 surface 畫 AbovePrompt
-    // 時才出現，headless 跑不會畫。
+    // Note: desktop-app sessions are SDK-started, so e.isInteractive=false and
+    // e.surface=null — never gate on them. The band only appears where a
+    // surface draws AbovePrompt; headless runs draw nothing.
     if (mode !== 'off') {
       const id = await $.session.id()
       const classified = await getStore<Record<string, Entry>>($, 'classified', {})
@@ -342,7 +346,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // fork 短句送出時，把完整指令以隱形 context 附給模型（使用者只看到短句）
+  // When the marker line is sent, attach the staged instruction as hidden context
   on('prompt.submit', async ($, e, next) => {
     const armed = await read($, forkArmed)
     if (armed === null) return next(e)
@@ -351,9 +355,11 @@ export const register: Register = on => {
     return next({ ...e, context: [...(e.context ?? []), armed] })
   })
 
-  // 工具列：貼著輸入框上緣、靠右，一行放完 ⍰ Explain 和 Sort 下拉
-  // （桌面版不畫 PromptHint 自訂樹，footer 只收純文字標籤——互動元件
-  // 能放的最低位置就是這裡；之前分兩個 plugin 各畫一行被嫌醜，合併成一行）。
+  // Toolbar: right-aligned against the composer's top edge, one row for the
+  // Explain buttons and the Sort dropdown. (The desktop app does not draw
+  // custom PromptHint trees and the footer takes plain text only, so this is
+  // the lowest spot interactive controls can live; two plugins drawing two
+  // stacked rows looked bad, hence one merged row.)
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     if (e.props.hasSurvey || e.surface === 'mobile') return below
@@ -410,7 +416,7 @@ export const register: Register = on => {
     )
   })
 
-  // 「解釋」小窗：聊天鈕固定在頂部（解釋很長時不用捲到底才看得到）
+  // Explain panel: the chat button stays at the top (long explanations would push it out of view)
   on('ui.render', { component: 'Pane', requestId: EXPLAIN_PANE }, async ($, e) => {
     const { Box, Text, Markdown, Button } = $.ui.resolve(e)
     const v = await read($, explainView)
@@ -455,8 +461,9 @@ export const register: Register = on => {
     return { text: 'Explaining — see the Explain panel on the right.' }
   })
 
-  // 疊在其他 band（如 next-steps）之上，不取代它們：先 next(e) 拿下層內容，
-  // 再把自己的一列排在下面（版式沿用 next-steps：淡色標題＋縮排內容列）。
+  // Stacks on top of other bands (e.g. next-steps) instead of replacing them:
+  // take next(e) first, then append our rows (layout follows next-steps:
+  // dim header plus indented content rows).
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     if (
@@ -475,7 +482,7 @@ export const register: Register = on => {
 
     const submit = async () => {
       const cur = await read($, form)
-      // 選單顯示預選值但使用者沒動過時，form.person 還是空字串——補上預選值
+      // The picker shows a preselected name the user may never touch; fall back to it
       const person = cur.person || (usePicker ? (people[0] ?? '') : '')
       await update($, pending, () => false)
       await classify($, { ...cur, person })
