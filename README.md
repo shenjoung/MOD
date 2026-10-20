@@ -15,7 +15,7 @@ workflow. All UI text is English; model output follows the language you chat in.
 ## Install
 
 ```bash
-/plugin marketplace add <owner>/<repo>
+/plugin marketplace add hourloop/MOD
 /plugin install task-sort@jones-mods
 /plugin install usage-line@jones-mods
 /plugin install next-steps-desktop@jones-mods
