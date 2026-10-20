@@ -50,7 +50,7 @@ describe('task-sort command', () => {
 })
 
 describe('task-sort sort dropdown', () => {
-  test('picking a mode from the composer dropdown switches it', async ($, on) => {
+  test('Sort lives inside the Classify panel and switches the mode', async ($, on) => {
     world(on)
     await $.session.start({ cwd: '/tmp', surface: 'desktop', isInteractive: false })
     const ui = await $.ui.mount({
@@ -59,6 +59,8 @@ describe('task-sort sort dropdown', () => {
       component: 'AbovePrompt',
       props: { hasSurvey: false } as RenderPropsOf['AbovePrompt'],
     })
+    expect(await ui.find({ key: 'sort-mode' })).toBeUndefined()
+    await ui.press({ key: 'classify' })
     expect(await ui.find({ key: 'sort-mode' })).toBeDefined()
     await ui.select({ key: 'sort-mode', value: 'person' })
     const out = await $.command.run(runArgs(''))
@@ -94,9 +96,10 @@ describe('explain in fork (one-click)', () => {
   })
 })
 
-describe('task-sort band', () => {
-  test('band hidden until a session start marks it pending', async ($, on) => {
+describe('task-sort classify panel', () => {
+  test('hidden until Classify is pressed; Close hides it again', async ($, on) => {
     world(on)
+    await $.session.start({ cwd: '/tmp', surface: 'desktop', isInteractive: false })
     const ui = await $.ui.mount({
       plugin: 'task-sort',
       surface: 'desktop',
@@ -104,33 +107,11 @@ describe('task-sort band', () => {
       props: { hasSurvey: false } as RenderPropsOf['AbovePrompt'],
     })
     expect(await ui.find({ key: 'create' })).toBeUndefined()
-    await ui.unmount()
-  })
-
-  test('session start shows the band; skip dismisses and marks it', async ($, on) => {
-    world(on)
-    await $.session.start({ cwd: '/tmp', surface: 'desktop', isInteractive: true })
-    const ui = await $.ui.mount({
-      plugin: 'task-sort',
-      surface: 'desktop',
-      component: 'AbovePrompt',
-      props: { hasSurvey: false } as RenderPropsOf['AbovePrompt'],
-    })
+    await ui.press({ key: 'classify' })
     expect(await ui.find({ key: 'create' })).toBeDefined()
-    await ui.press({ key: 'skip' })
+    await ui.press({ key: 'close' })
     expect(await ui.find({ key: 'create' })).toBeUndefined()
     await ui.unmount()
-
-    // Skip must be recorded: the same session is not asked again on restart
-    await $.session.start({ cwd: '/tmp', surface: 'desktop', isInteractive: true })
-    const again = await $.ui.mount({
-      plugin: 'task-sort',
-      surface: 'desktop',
-      component: 'AbovePrompt',
-      props: { hasSurvey: false } as RenderPropsOf['AbovePrompt'],
-    })
-    expect(await again.find({ key: 'create' })).toBeUndefined()
-    await again.unmount()
   })
 
   test('untouched picker still files under the preselected person', async ($, on) => {
@@ -159,24 +140,10 @@ describe('task-sort band', () => {
       component: 'AbovePrompt',
       props: { hasSurvey: false } as RenderPropsOf['AbovePrompt'],
     })
+    await ui.press({ key: 'classify' })
     expect(await ui.find({ key: 'person-pick' })).toBeDefined()
     await ui.press({ key: 'create' })
     expect(JSON.stringify(db['classified'] ?? {})).toContain('joanne')
-    await ui.unmount()
-  })
-
-  test('an already-classified session is not asked again', async ($, on) => {
-    world(on, {
-      classified: { 'test-session': { date: '10-14', person: 'Sam', issue: 'x' } },
-    })
-    await $.session.start({ cwd: '/tmp', surface: 'desktop', isInteractive: true })
-    const ui = await $.ui.mount({
-      plugin: 'task-sort',
-      surface: 'desktop',
-      component: 'AbovePrompt',
-      props: { hasSurvey: false } as RenderPropsOf['AbovePrompt'],
-    })
-    expect(await ui.find({ key: 'create' })).toBeUndefined()
     await ui.unmount()
   })
 })
@@ -257,11 +224,12 @@ describe('explain (merged)', () => {
     expect((seenContext ?? []).length).toBe(0)
   })
 
-  test('toolbar has Explain and Sort on one row; press explains into the pane', async ($, on) => {
+  test('toolbar has Explain, Explain in fork and Classify; press explains into the pane', async ($, on) => {
     explainWorld(on, {})
     const band = await $.ui.mount({ ...EXPLAIN_BAND })
     expect(await band.find({ key: 'explain' })).toBeDefined()
-    expect(await band.find({ key: 'sort-mode' })).toBeDefined()
+    expect(await band.find({ key: 'explain-fork' })).toBeDefined()
+    expect(await band.find({ key: 'classify' })).toBeDefined()
     await band.press({ key: 'explain' })
     await band.unmount()
 

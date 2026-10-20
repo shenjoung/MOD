@@ -63,7 +63,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect((await ui.find({ key: 's1' }))?.props.label).toBe('run the full suite')
     expect((await ui.find({ key: 's2' }))?.props.label).toBe('update the docs')
     expect((await ui.find({ key: 'dismiss' }))?.props.role).toBe('dismiss')
-    expect((await ui.find({ key: 'dismiss' }))?.props.label).toBe('Dismiss')
+    expect((await ui.find({ key: 'dismiss' }))?.props.label).toBe('×')
     expect(forkPrompts[0]).toContain('the language the user has been writing in')
 
     await ui.press({ key: 's2' })
@@ -88,52 +88,32 @@ test('a subagent turn does not fork', async ($, on) => {
   await ui.unmount()
 })
 
-for (const surface of ['terminal', 'desktop'] as const) {
-  test(`Send submits a suggestion as the person's own prompt on ${surface}`, async ($, on) => {
-    const submitted: { text: string; origin: unknown }[] = []
-    engine(on)
-    on('model.fork', async () => ({ value: FORK_REPLY }))
-    on('prompt.suggest', async () => ({ isShown: true }))
-    on('prompt.submit', async (_$, e) => {
-      submitted.push({ text: e.text, origin: e.origin })
-      return { text: e.text }
-    })
-
-    const ui = await $.ui.mount({ plugin: PLUGIN, surface, ...BAND })
-    await $.turn.complete({ answer: ANSWER, durationMs: 1000, isAborted: false, turnId: 't1', reason: 'answer' })
-    await settle()
-    expect(submitted).toHaveLength(0) // nothing is sent without a press
-
-    await ui.press({ key: 'send2' })
-    expect(submitted).toHaveLength(1)
-    expect(submitted[0]?.text).toBe('update docs/worktime.md for this change')
-    expect(submitted[0]?.origin).toMatchObject({ kind: 'plugin', asUser: true })
-    expect(await ui.find({ key: 'send1' })).toBeUndefined()
-    await ui.unmount()
-  })
-}
-
-test("the prompt box's own suggestion gets a Send button too", async ($, on) => {
-  const submitted: string[] = []
+test('long labels are shown as a gist; the press fills the full prompt', async ($, on) => {
+  const filled: string[] = []
   engine(on)
-  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('model.fork', async () => ({
+    value: {
+      ...FORK_REPLY,
+      text: JSON.stringify([
+        {
+          label: 'update the worktime documentation for the new tests',
+          prompt: 'update docs/worktime.md for this change',
+        },
+      ]),
+    },
+  }))
   on('prompt.suggest', async () => ({ isShown: true }))
-  on('prompt.submit', async (_$, e) => {
-    submitted.push(e.text)
-    return { text: e.text }
+  on('prompt.fill', async (_$, e) => {
+    filled.push(e.text)
+    return { isFilled: true }
   })
   const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...BAND })
-  // Claude Code's own guess at the next prompt, shown dim in the box.
-  await $.prompt.suggest({ text: 'commit and push this', origin: { kind: 'suggestion' } })
-  expect((await ui.find({ type: 'Text', text: /Suggested: commit and push this/ }))).toBeDefined()
-
-  await ui.press({ key: 'send-ghost' })
-  expect(submitted).toEqual(['commit and push this'])
-  expect(await ui.find({ key: 'send-ghost' })).toBeUndefined()
-
-  // A new turn clears it.
-  await $.prompt.suggest({ text: 'run the tests', origin: { kind: 'suggestion' } })
-  await $.turn.start({ turnId: 't9' } as never)
-  expect(await ui.find({ key: 'send-ghost' })).toBeUndefined()
+  await $.turn.complete({ answer: ANSWER, durationMs: 1000, isAborted: false, turnId: 't1', reason: 'answer' })
+  await settle()
+  const label = (await ui.find({ key: 's1' }))?.props.label as string
+  expect(label.length <= 28).toBe(true)
+  expect(label.endsWith('…')).toBe(true)
+  await ui.press({ key: 's1' })
+  expect(filled).toEqual(['update docs/worktime.md for this change'])
   await ui.unmount()
 })

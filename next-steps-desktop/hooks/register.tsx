@@ -130,6 +130,13 @@ function forkPrompt(skills: string): string {
 
 // A prompt that starts with a slash runs a command, so one naming a command
 // the session does not have is dropped rather than offered.
+// The band shows only the gist; the full prompt appears in the composer on press.
+const BRIEF_MAX = 28
+function brief(label: string): string {
+  const points = [...label]
+  return points.length > BRIEF_MAX ? `${points.slice(0, BRIEF_MAX - 1).join('')}…` : label
+}
+
 function namesKnownCommand(prompt: string, known: ReadonlySet<string> | null): boolean {
   if (!prompt.startsWith('/') || known === null) return true
   return known.has(prompt.slice(1).split(' ', 1)[0] ?? '')
@@ -263,19 +270,18 @@ export const register: Register = (on, options) => {
     }
 
     const items = view.kind === 'offer' ? view.items : []
-    const box = ghost !== null && !items.some(item => item.prompt === ghost) ? ghost : null
+    if (items.length === 0) return below
     return (
       <Box flexDirection="column">
         {below}
-        <Box marginTop={1} />
-        <Text dimColor>Next steps:</Text>
-        {items.map((item, index) => (
-          <Box key={`s${index}`} marginLeft={2} flexDirection="row">
+        <Box marginTop={1} gap={2} alignItems="center" flexWrap="wrap">
+          <Text dimColor>Next:</Text>
+          {items.map((item, index) => (
             <Button
               key={`s${index + 1}`}
               hotkey={String(index + 1)}
               plain
-              label={item.label}
+              label={brief(item.label)}
               onPress={() => {
                 show($, { kind: 'hidden' })
                 void $.prompt.fill({ text: item.prompt }).then(
@@ -284,27 +290,14 @@ export const register: Register = (on, options) => {
                 )
               }}
             />
-            <Box marginLeft={2}>
-              <Button key={`send${index + 1}`} dimColor label="Send" onPress={() => send($, item.prompt)} />
-            </Box>
-          </Box>
-        ))}
-        {box !== null && (
-          <Box key="ghost" marginLeft={2} flexDirection="row">
-            <Text dimColor>Suggested: {box.length > LABEL_MAX ? `${box.slice(0, LABEL_MAX - 1)}…` : box}</Text>
-            <Box marginLeft={2}>
-              <Button key="send-ghost" dimColor label="Send" onPress={() => send($, box)} />
-            </Box>
-          </Box>
-        )}
-        <Box marginLeft={2}>
-          {/* role="dismiss": a desktop draws its native close control for it. */}
+          ))}
           <Button
             key="dismiss"
             hotkey="0"
             plain
+            dimColor
             role="dismiss"
-            label="Dismiss"
+            label="×"
             onPress={() => {
               show($, { kind: 'hidden' })
               setGhost($, null)

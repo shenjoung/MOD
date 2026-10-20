@@ -21,7 +21,7 @@ const SESSIONS = 'ccd_session_mgmt'
 // of previously used names plus "+ New name" to type a fresh one.
 type Entry = { date: string; person: string; issue: string; skipped?: boolean }
 
-const pending = atom({ plugin: 'task-sort', key: 'pending' } as const, false)
+const panel = atom({ plugin: 'task-sort', key: 'panel' } as const, false)
 const form = atom({ plugin: 'task-sort', key: 'form' } as const, {
   person: '',
   issue: '',
@@ -138,13 +138,6 @@ async function classify($: EngineInterface, f: TaskForm): Promise<void> {
   }
 }
 
-async function dismiss($: EngineInterface): Promise<void> {
-  await update($, pending, () => false)
-  const id = await $.session.id()
-  const classified = await getStore<Record<string, Entry>>($, 'classified', {})
-  classified[id] = { date: ymd(Date.now()), person: '', issue: '', skipped: true }
-  await $.store.set('classified', classified)
-}
 
 // -- Explain (formerly its own mod; merged so both share one toolbar row) --
 // Modeled on the "select text -> floating explanation" popover pattern: the
@@ -160,8 +153,6 @@ const explainView = atom({ plugin: 'task-sort', key: 'explain' } as const, {
 // (the composer only ever shows one short sentence)
 const forkArmed = atom({ plugin: 'task-sort', key: 'forkArmed' } as const, null as string | null)
 
-// Line-style question-circle icon (matches the sidebar's line SVGs; no emoji)
-const ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#8b8b94" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M6.1 6.1a1.9 1.9 0 1 1 2.7 1.7c-.55.3-.8.65-.8 1.3v.2"/><path d="M8 11.5v.01"/></svg>`
 
 function replyPrompt(): string {
   return [
@@ -332,17 +323,6 @@ export const register: Register = on => {
     const mode = await getStore<Mode>($, 'mode', 'both')
     await update($, modeA, () => mode)
 
-    // Note: desktop-app sessions are SDK-started, so e.isInteractive=false and
-    // e.surface=null — never gate on them. The band only appears where a
-    // surface draws AbovePrompt; headless runs draw nothing.
-    if (mode !== 'off') {
-      const id = await $.session.id()
-      const classified = await getStore<Record<string, Entry>>($, 'classified', {})
-      if (!classified[id]) {
-        await update($, pending, () => true)
-      }
-    }
-
     return next(e)
   })
 
@@ -355,29 +335,19 @@ export const register: Register = on => {
     return next({ ...e, context: [...(e.context ?? []), armed] })
   })
 
-  // Toolbar: right-aligned against the composer's top edge, one row for the
-  // Explain buttons and the Sort dropdown. (The desktop app does not draw
-  // custom PromptHint trees and the footer takes plain text only, so this is
-  // the lowest spot interactive controls can live; two plugins drawing two
-  // stacked rows looked bad, hence one merged row.)
+  // Toolbar: one right-aligned row against the composer's top edge. Explain,
+  // Explain in fork, and Classify (which expands the classification panel —
+  // person, task, Sort — on press; nothing is shown until then).
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     if (e.props.hasSurvey || e.surface === 'mobile') return below
-    const { Box, Button, Select } = $.ui.resolve(e)
-    const mode = await read($, modeA)
-    const icon =
-      e.surface === 'terminal'
-        ? null
-        : (() => {
-            const { Svg } = $.ui.resolve(e)
-            return <Svg source={ICON} alt="explain" width={12} height={12} />
-          })()
+    const { Box, Button } = $.ui.resolve(e)
+    const isOpen = await read($, panel)
 
     return (
       <Box flexDirection="column">
         {below}
-        <Box gap={1} alignItems="center" justifyContent="flex-end">
-          {icon}
+        <Box gap={2} alignItems="center" justifyContent="flex-end">
           <Button
             key="explain"
             label="Explain"
@@ -392,25 +362,13 @@ export const register: Register = on => {
             dimColor
             onPress={() => void startForkExplain($).catch(() => {})}
           />
-          <Box marginLeft={1}>
-            <Select
-              key="sort-mode"
-              label="Sort"
-              value={mode}
-              options={[
-                { label: 'Date', value: 'date' },
-                { label: 'Person', value: 'person' },
-                { label: 'Both', value: 'both' },
-                { label: 'Off', value: 'off' },
-              ]}
-              onSelect={async v => {
-                if (MODES.includes(v as Mode)) {
-                  await setMode($, v as Mode)
-                  $.ui.toast(`task-sort: ${v} — ${MODE_DESC[v as Mode]}`)
-                }
-              }}
-            />
-          </Box>
+          <Button
+            key="classify"
+            label="Classify"
+            plain
+            dimColor={!isOpen}
+            onPress={() => update($, panel, open => !open)}
+          />
         </Box>
       </Box>
     )
@@ -461,13 +419,12 @@ export const register: Register = on => {
     return { text: 'Explaining — see the Explain panel on the right.' }
   })
 
-  // Stacks on top of other bands (e.g. next-steps) instead of replacing them:
-  // take next(e) first, then append our rows (layout follows next-steps:
-  // dim header plus indented content rows).
+  // Classification panel: hidden until the toolbar's Classify button opens it.
+  // Stacks on top of other bands (e.g. next-steps) instead of replacing them.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     if (
-      !(await read($, pending)) ||
+      !(await read($, panel)) ||
       e.props.hasSurvey ||
       e.props.isWorking ||
       e.surface === 'mobile'
@@ -477,6 +434,7 @@ export const register: Register = on => {
 
     const f = await read($, form)
     const people = await getStore<string[]>($, 'people', [])
+    const mode = await read($, modeA)
     const { Box, Text, Input, Select, Button } = $.ui.resolve(e)
     const usePicker = people.length > 0 && !f.isNewPerson
 
@@ -484,7 +442,7 @@ export const register: Register = on => {
       const cur = await read($, form)
       // The picker shows a preselected name the user may never touch; fall back to it
       const person = cur.person || (usePicker ? (people[0] ?? '') : '')
-      await update($, pending, () => false)
+      await update($, panel, () => false)
       await classify($, { ...cur, person })
     }
 
@@ -537,16 +495,33 @@ export const register: Register = on => {
             />
           </Box>
         </Box>
-        <Box marginLeft={2} marginTop={1} gap={2}>
+        <Box marginLeft={2} marginTop={1} gap={2} alignItems="center">
           <Button key="create" label="Create" variant="primary" onPress={submit} />
+          <Select
+            key="sort-mode"
+            label="Sort"
+            value={mode}
+            options={[
+              { label: 'Date', value: 'date' },
+              { label: 'Person', value: 'person' },
+              { label: 'Both', value: 'both' },
+              { label: 'Off', value: 'off' },
+            ]}
+            onSelect={async v => {
+              if (MODES.includes(v as Mode)) {
+                await setMode($, v as Mode)
+                $.ui.toast(`task-sort: ${v} — ${MODE_DESC[v as Mode]}`)
+              }
+            }}
+          />
           <Button
-            key="skip"
+            key="close"
             hotkey="0"
-            label="Skip"
+            label="Close"
             plain
             dimColor
             role="dismiss"
-            onPress={() => dismiss($)}
+            onPress={() => update($, panel, () => false)}
           />
         </Box>
       </Box>

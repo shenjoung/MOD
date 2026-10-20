@@ -11,7 +11,7 @@ export type ExplainView =
 declare module 'claude-code' {
   interface PluginState {
     'task-sort': {
-      pending: boolean
+      panel: boolean
       form: TaskForm
       mode: Mode
       explain: ExplainView
