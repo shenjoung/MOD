@@ -1,0 +1,22 @@
+{
+  "name": "paste-offload",
+  "version": "0.1.0",
+  "description": "A pasted block over the threshold is saved to ~/.claude/pastes/ and the prompt keeps only its head and the file's path, so a 400k-character debug dump is not re-read on every later step.",
+  "author": { "name": "Jones Fang" },
+  "userConfig": {
+    "thresholdChars": {
+      "type": "number",
+      "title": "Save pastes longer than",
+      "description": "A pasted block (or a whole prompt with no paste tags) longer than this many characters is saved to a file.",
+      "required": false,
+      "default": 20000
+    },
+    "headLines": {
+      "type": "number",
+      "title": "Lines kept in the prompt",
+      "description": "How many leading lines of a saved paste stay in the prompt.",
+      "required": false,
+      "default": 40
+    }
+  }
+}

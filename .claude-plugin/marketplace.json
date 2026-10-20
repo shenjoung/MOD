@@ -1,0 +1,33 @@
+{
+  "name": "jones-mods",
+  "owner": {
+    "name": "Jones Fang"
+  },
+  "plugins": [
+    {
+      "name": "next-steps-desktop",
+      "source": "./next-steps-desktop",
+      "description": "每回合後在輸入框上方給最多三個下一步建議"
+    },
+    {
+      "name": "paste-offload",
+      "source": "./paste-offload",
+      "description": "超長貼上內容存檔，prompt 只留開頭與路徑"
+    },
+    {
+      "name": "deploy-status",
+      "source": "./deploy-status",
+      "description": "/deploys 顯示 hourloop/guild 的 prod/integ 部署狀態"
+    },
+    {
+      "name": "task-sort",
+      "source": "./task-sort",
+      "description": "輸入框上緣工具列（Explain＋Sort 下拉）、session 分類、解釋小窗與開 fork 聊天"
+    },
+    {
+      "name": "usage-line",
+      "source": "./usage-line",
+      "description": "footer 顯示 5h/7d 用量與重置倒數"
+    }
+  ]
+}

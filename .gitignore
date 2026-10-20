@@ -1,0 +1,4 @@
+# Engine-generated type snapshots (rewritten on every mod load)
+*/.claude-plugin/types/
+.DS_Store
+node_modules/

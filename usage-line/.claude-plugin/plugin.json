@@ -1,0 +1,9 @@
+{
+  "name": "usage-line",
+  "version": "0.1.0",
+  "description": "右側面板顯示 5h/7d 用量進度條（彩色、重置倒數與時刻），資料與 /usage 同源。",
+  "author": {
+    "name": "Jones Fang"
+  },
+  "types": "./types/index.d.ts"
+}
