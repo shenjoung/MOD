@@ -97,11 +97,22 @@ function forkPrompt(skills: string): string {
   return (
     'Do not continue the task. Instead, predict what the user is most likely to ask you next, ' +
     `as concrete prompts written in the user's voice (imperative, specific to ` +
-    'this conversation: name the file, test, PR, or follow-up they would actually type). Prefer the ' +
-    'obvious next action (run the tests, commit, fix the thing you flagged, do the same for X) over generic ' +
-    `ones. Include only options genuinely worth considering — ${MAX_SUGGESTIONS} at most, and fewer is ` +
-    'better than padding: two strong options beat five weak ones. If the conversation is clearly ' +
-    'finished or nothing useful comes to mind, return an empty list.\n\n' +
+    'this conversation: name the file, test, PR, or follow-up they would actually type).\n\n' +
+    'Where to look, in order: (1) anything your last reply left open — a question you asked, ' +
+    'a "For you" ask, an unverified claim, a risk you flagged; (2) the natural continuation of ' +
+    'the task (run the tests, commit, do the same for the other occurrences you listed); ' +
+    '(3) a different direction the user has been circling in this conversation but has not ' +
+    'committed to yet. Each option must lead somewhere different — never two phrasings of the ' +
+    'same action, and never an option that merely restates or confirms what was already done.\n\n' +
+    'Quality bar: the user should read an option and feel it saved them typing exactly what ' +
+    'they were about to type. Drop anything generic enough to fit another conversation ' +
+    '("continue", "test it", "clean up"), anything already completed or answered above, and ' +
+    'anything the user explicitly declined earlier. Include only options that pass this bar — ' +
+    `${MAX_SUGGESTIONS} at most, and fewer is better than padding: two strong options beat ` +
+    'five weak ones. If the conversation is clearly finished or nothing passes the bar, ' +
+    'return an empty list.\n\n' +
+    'Labels: a label is the decision, not the category — "commit and push the fix" beats ' +
+    '"next step"; name the concrete thing (the file, the person, the PR) when it fits.\n\n' +
     (skills === ''
       ? ''
       : 'The user runs a skill or slash command by starting a prompt with its name. When one of them is ' +
